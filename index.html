@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ระบบจัดการแผนที่ | Supabase</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Map EMS" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
+    *{font-family:'Kanit',sans-serif} html,body{height:100%;margin:0}.hide-labels .custom-label{display:none!important}.custom-label{background:rgba(255,255,255,.95);border:1px solid #ef4444;border-radius:6px;font-size:13px;font-weight:600;color:#b91c1c;padding:2px 8px;box-shadow:0 2px 5px rgba(0,0,0,.15);white-space:nowrap}.cursor-pinning{cursor:url('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png') 12 41,crosshair!important}@keyframes bounce-short{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,-10px)}}.animate-bounce-short{animation:bounce-short 1.5s ease-in-out infinite}.custom-scrollbar::-webkit-scrollbar{width:4px}.custom-scrollbar::-webkit-scrollbar-track{background:transparent}.custom-scrollbar::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}.custom-scrollbar::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+  </style>
+</head>
+<body class="bg-gray-50 overflow-hidden transition-colors duration-300">
+  <nav class="bg-white shadow-md h-16 flex items-center px-4 sm:px-8 fixed w-full top-0 z-50 justify-between">
+    <div class="flex items-center gap-3 sm:gap-8 shrink-0">
+      <button onclick="toggleMobileMenu()" class="md:hidden text-gray-600 hover:text-blue-600 focus:outline-none text-2xl p-1 transition-colors"><i class="fa-solid fa-bars"></i></button>
+      <div class="flex items-center text-blue-600"><i class="fa-solid fa-map-location-dot text-2xl sm:mr-3 mr-2"></i><span class="text-lg sm:text-xl font-bold tracking-tight">ระบบจัดการแผนที่</span></div>
+      <div id="navMenu" class="absolute top-16 left-0 w-full bg-white shadow-lg md:shadow-none md:static md:w-auto md:bg-transparent flex-col md:flex-row items-start md:items-center px-6 py-4 md:p-0 gap-4 md:gap-6 hidden md:flex text-sm border-t border-gray-100 md:border-none z-40 transition-all">
+        <a href="javascript:void(0);" onclick="switchView('map'); toggleMobileMenu(true);" id="navMap" class="flex items-center w-full md:w-auto text-blue-600 font-bold transition-all hover:text-blue-700 py-2 md:py-0"><i class="fa-solid fa-house w-5 text-center mr-1"></i> หน้าแรก</a>
+        <a href="javascript:void(0);" onclick="switchView('data'); toggleMobileMenu(true);" id="navData" class="flex items-center w-full md:w-auto text-gray-500 font-medium hover:text-blue-600 transition-all py-2 md:py-0"><i class="fa-solid fa-database w-5 text-center mr-1"></i> ข้อมูลแผนที่</a>
+        <a href="javascript:void(0);" onclick="switchView('staff'); toggleMobileMenu(true);" id="navStaff" class="hidden items-center w-full md:w-auto text-gray-500 font-medium hover:text-blue-600 transition-all py-2 md:py-0"><i class="fa-solid fa-users w-5 text-center mr-1"></i> ข้อมูลผู้ดูแล</a>
+      </div>
+    </div>
+    <div id="authSection" class="text-sm font-medium shrink-0 flex items-center"></div>
+  </nav>
+
+  <div id="mapViewSection" class="w-full h-full relative">
+    <div id="map" class="mt-16 w-full h-[calc(100vh-64px)] z-0"></div>
+    <div id="mapSearchBox" class="fixed top-20 left-1/2 -translate-x-1/2 z-[900] w-[calc(100%-2rem)] sm:w-[460px]"><div class="bg-white/95 backdrop-blur shadow-xl rounded-2xl border border-gray-200 p-2"><div class="flex items-center gap-2"><i class="fa-solid fa-magnifying-glass text-gray-400 ml-2"></i><input type="text" id="mapSearchInput" placeholder="ค้นหาสถานที่ทั้งหมด..." class="w-full outline-none text-sm bg-transparent py-1.5" oninput="searchMapLocations()"><select id="mapCategoryFilter" onchange="searchMapLocations();showMapMarkers(getVisibleMapData())" class="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 outline-none"><option value="">ทั้งหมด</option><option value="general">F/U</option><option value="hospital">1504</option><option value="home">1669</option><option value="meeting_point">โรงพยาบาล</option></select><button onclick="clearMapSearch()" class="text-gray-400 hover:text-red-500 px-2 transition-colors" title="ล้างการค้นหา"><i class="fa-solid fa-xmark"></i></button></div></div><div id="mapSearchResults" class="hidden bg-white mt-2 rounded-2xl shadow-xl border border-gray-200 max-h-72 overflow-y-auto"></div></div>
+    <div id="minimizedBar" class="hidden fixed bottom-8 left-1/2 transform -translate-x-1/2 z-[1000] bg-white px-5 py-3 rounded-full shadow-2xl border-2 border-blue-400 flex items-center gap-4 w-max animate-bounce-short"><span class="text-sm font-bold text-blue-700 flex items-center"><i class="fa-solid fa-hand-pointer mr-2 text-blue-500"></i> ลากหมุดเพื่อเปลี่ยนตำแหน่ง</span><button onclick="maximizeForm()" class="bg-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow hover:bg-blue-700 active:scale-95 transition-all">เสร็จสิ้น</button></div>
+    <div id="formModal" class="hidden fixed top-[80px] sm:top-[90px] left-4 sm:left-16 z-[1000] w-[calc(100%-2rem)] sm:w-[330px] transition-all"><div class="bg-white p-5 rounded-2xl shadow-2xl border border-gray-200 max-h-[calc(100vh-100px)] overflow-y-auto custom-scrollbar"><div class="flex items-center mb-3"><div class="bg-blue-100 p-2 rounded-full mr-2"><i class="fa-solid fa-location-dot text-blue-600 text-sm"></i></div><h2 id="formTitle" class="text-lg font-bold text-gray-800">ปักหมุดจุดใหม่</h2></div>
+      <label class="text-xs font-medium text-gray-600 ml-1">ชื่อสถานที่ <span class="text-red-500">*</span></label><input type="text" id="name" class="w-full mb-2 p-1.5 text-sm bg-gray-50 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg outline-none transition-all" placeholder="เช่น ร้านกาแฟ">
+      <label class="text-xs font-medium text-gray-600 ml-1">หมวดหมู่</label><select id="category" class="w-full mb-2 p-1.5 text-sm bg-gray-50 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg outline-none transition-all"><option value="general">F/U</option><option value="hospital">1504</option><option value="home">1669</option><option value="meeting_point">โรงพยาบาล</option></select>
+      <div class="flex gap-2 mb-1"><div class="w-1/2"><label class="text-[10px] font-medium text-gray-500 ml-1">Latitude</label><input type="number" step="any" id="lat" class="w-full p-1.5 bg-white border border-blue-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-xs text-blue-700 font-bold outline-none transition-all"></div><div class="w-1/2"><label class="text-[10px] font-medium text-gray-500 ml-1">Longitude</label><input type="number" step="any" id="lng" class="w-full p-1.5 bg-white border border-blue-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-xs text-blue-700 font-bold outline-none transition-all"></div></div>
+      <button type="button" onclick="useMyLocation()" class="mb-2 w-full flex justify-center items-center gap-1.5 text-[11px] bg-green-50 hover:bg-green-100 text-green-700 py-1.5 rounded-lg border border-green-200 transition-all font-bold shadow-sm"><i class="fa-solid fa-location-crosshairs"></i> ใช้ตำแหน่งปัจจุบันของฉัน</button>
+      <button type="button" onclick="minimizeForm()" class="mb-3 w-full flex justify-center items-center gap-1.5 text-[11px] bg-blue-50 hover:bg-blue-100 text-blue-600 py-1.5 rounded-lg border border-blue-200 transition-all font-bold shadow-sm"><i class="fa-solid fa-arrows-up-down-left-right"></i> ซ่อนฟอร์มชั่วคราวเพื่อเลื่อนหมุดบนแผนที่</button>
+      <label class="text-xs font-medium text-gray-600 ml-1">รายละเอียด</label><textarea id="detail" class="w-full mb-2 p-1.5 text-sm bg-gray-50 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg h-12 outline-none transition-all" placeholder="รายละเอียดเบื้องต้น..."></textarea><label class="text-xs font-medium text-gray-600 ml-1">ที่อยู่</label><input type="text" id="address" class="w-full mb-2 p-1.5 text-sm bg-gray-50 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg outline-none transition-all" placeholder="ตำบล, อำเภอ, จังหวัด"><label class="text-xs font-medium text-gray-600 ml-1">เบอร์โทรศัพท์</label><input type="text" id="tel" class="w-full mb-4 p-1.5 text-sm bg-gray-50 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg outline-none transition-all" placeholder="08x-xxx-xxxx">
+      <div class="flex justify-between items-center mt-2"><button id="deleteBtn" onclick="deletePin()" class="hidden px-3 py-2 text-red-500 hover:bg-red-50 text-xs font-bold rounded-lg transition-all"><i class="fa-solid fa-trash mr-1"></i> ลบ</button><div class="flex gap-2 ml-auto"><button onclick="cancelProcess()" class="px-4 py-2 text-gray-500 text-xs font-medium hover:bg-gray-100 rounded-lg transition-all">ยกเลิก</button><button id="saveBtn" onclick="saveData()" class="px-5 py-2 bg-blue-600 text-xs text-white font-bold rounded-lg shadow-md shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all">บันทึกหมุด</button></div></div>
+    </div></div>
+  </div>
+
+  <div id="mapDataSection" class="hidden pt-24 px-4 sm:px-8 max-w-7xl mx-auto pb-10"><div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4"><h2 class="text-2xl font-bold text-gray-800 flex items-center shrink-0"><div class="bg-blue-100 p-2 rounded-lg mr-3"><i class="fa-solid fa-table-list text-blue-600"></i></div>ข้อมูลสถานที่ทั้งหมด</h2><div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto"><div class="relative w-full sm:w-64"><div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none"><i class="fa-solid fa-magnifying-glass text-gray-400"></i></div><input type="text" id="searchInput" oninput="searchData()" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2 shadow-sm transition-all outline-none" placeholder="ค้นหาชื่อ, ที่อยู่, เบอร์โทร..."></div><select id="dataCategoryFilter" onchange="searchData()" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full sm:w-44 p-2 shadow-sm outline-none"><option value="">ทุกหมวดหมู่</option><option value="general">F/U</option><option value="hospital">1504</option><option value="home">1669</option><option value="meeting_point">โรงพยาบาล</option></select><div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl shadow-sm border border-gray-200 w-full sm:w-auto justify-between sm:justify-start"><label class="text-sm font-medium text-gray-600 whitespace-nowrap">แสดง:</label><select id="rowsPerPage" onchange="updateRowsPerPage()" class="bg-gray-50 border border-gray-300 rounded-lg p-1 text-sm font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"><option value="5">5 แถว</option><option value="10" selected>10 แถว</option><option value="50">50 แถว</option><option value="100">100 แถว</option></select></div></div></div><div class="bg-white rounded-2xl shadow-sm overflow-x-auto border border-gray-200"><table class="w-full text-left border-collapse min-w-[900px]"><thead><tr class="bg-blue-50 text-blue-800 text-sm border-b border-blue-100"><th class="p-4 font-bold text-center w-16">ลำดับ</th><th class="p-4 font-bold">ชื่อสถานที่</th><th class="p-4 font-bold w-32">หมวดหมู่</th><th class="p-4 font-bold w-64">พิกัด (Lat, Lng)</th><th class="p-4 font-bold">ที่อยู่</th><th class="p-4 font-bold w-48">เบอร์โทร</th><th id="thAction" class="p-4 font-bold text-center w-36 hidden">จัดการ</th></tr></thead><tbody id="mapDataTableBody" class="text-sm text-gray-700 divide-y divide-gray-100"></tbody></table></div><div class="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-200"><div class="text-sm text-gray-600 font-medium text-center sm:text-left">แสดง <span id="pageInfoStart" class="font-bold text-blue-600">0</span> ถึง <span id="pageInfoEnd" class="font-bold text-blue-600">0</span> จากทั้งหมด <span id="pageInfoTotal" class="font-bold text-blue-600">0</span> รายการ</div><div class="flex items-center gap-2"><button onclick="changePage(-1)" id="prevPageBtn" class="px-4 py-2 bg-white border border-gray-300 rounded-xl text-gray-600 font-medium hover:bg-gray-50 hover:text-blue-600 disabled:opacity-40 transition-all shadow-sm"><i class="fa-solid fa-chevron-left mr-1"></i> ก่อนหน้า</button><div class="px-4 py-2 bg-blue-50 text-blue-700 font-bold rounded-xl border border-blue-100 shadow-inner">หน้า <span id="currentPageDisplay">1</span></div><button onclick="changePage(1)" id="nextPageBtn" class="px-4 py-2 bg-white border border-gray-300 rounded-xl text-gray-600 font-medium hover:bg-gray-50 hover:text-blue-600 disabled:opacity-40 transition-all shadow-sm">ถัดไป <i class="fa-solid fa-chevron-right ml-1"></i></button></div></div></div>
+
+  <div id="staffViewSection" class="hidden pt-24 px-4 sm:px-8 max-w-6xl mx-auto pb-10"><div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4"><h2 class="text-xl sm:text-2xl font-bold text-gray-800 flex items-center"><div class="bg-blue-100 p-2 rounded-lg mr-3"><i class="fa-solid fa-users-gear text-blue-600"></i></div>ข้อมูลผู้ดูแลระบบ</h2><button onclick="switchToTrash()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl shadow-md font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-trash-can"></i> ถังขยะ</button><button onclick="openCreateUserModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl shadow-md font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> เพิ่มผู้ใช้</button></div><div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden w-full"><div class="overflow-x-auto"><table class="w-full text-left border-collapse min-w-[820px]"><thead><tr class="bg-blue-50 text-blue-800 text-xs sm:text-sm border-b border-blue-100"><th class="p-3 sm:p-4 font-bold text-center w-24">ID</th><th class="p-3 sm:p-4 font-bold">ชื่อ</th><th class="p-3 sm:p-4 font-bold">Username</th><th class="p-3 sm:p-4 font-bold text-center w-32">Role</th><th class="p-3 sm:p-4 font-bold text-center w-48">จัดการ</th></tr></thead><tbody id="staffTableBody" class="text-xs sm:text-sm text-gray-700 divide-y divide-gray-100"></tbody></table></div></div><div class="mt-4 p-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-800 text-sm leading-relaxed"><b>หมายเหตุ:</b> การเพิ่มผู้ใช้ / ลบผู้ใช้ / รีเซ็ตรหัสผ่าน ทำผ่าน Supabase Edge Function <code>admin-users</code> เฉพาะบัญชี superadmin เท่านั้น</div></div>
+
+
+
+  <div id="trashSection" class="hidden pt-24 px-4 sm:px-8 max-w-6xl mx-auto pb-10">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+      <h2 class="text-xl sm:text-2xl font-bold text-gray-800 flex items-center">
+        <div class="bg-red-100 p-2 rounded-lg mr-3"><i class="fa-solid fa-trash-can text-red-600"></i></div>
+        ถังขยะหมุดแผนที่
+      </h2>
+      <button onclick="switchView('staff')" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-xl shadow-md font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-arrow-left"></i> กลับ</button>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden w-full">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[850px]">
+          <thead>
+            <tr class="bg-red-50 text-red-800 text-sm border-b border-red-100">
+              <th class="p-4 font-bold">ชื่อสถานที่</th>
+              <th class="p-4 font-bold w-32">หมวดหมู่</th>
+              <th class="p-4 font-bold">ที่อยู่</th>
+              <th class="p-4 font-bold w-56">พิกัด</th>
+              <th class="p-4 font-bold text-center w-52">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="trashTableBody" class="text-sm text-gray-700 divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+
+  <button id="installAppBtn" onclick="installApp()" class="hidden fixed bottom-5 right-5 z-[1200] bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-2xl shadow-2xl font-bold text-sm"><i class="fa-solid fa-download mr-1"></i> ติดตั้งแอป</button>
+  <div id="mobileMode" class="hidden fixed inset-0 bg-gradient-to-b from-blue-50 to-white z-[9999] overflow-y-auto">
+    <div class="max-w-md mx-auto min-h-screen p-4 flex flex-col">
+      <div class="flex justify-between items-center mb-4 pt-2">
+        <div>
+          <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><i class="fa-solid fa-person-walking text-green-600"></i> โหมดภาคสนาม</h2>
+          <p class="text-xs text-gray-500 mt-1">เพิ่มหมุดเร็วจากตำแหน่งปัจจุบัน</p>
+        </div>
+        <button onclick="closeMobileMode()" class="w-10 h-10 rounded-full bg-white shadow text-red-500 text-xl"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-5 space-y-4">
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="getMobileLocation()" class="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl text-base font-bold shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-location-crosshairs"></i> รีเฟรช GPS</button>
+          <button onclick="openMobileGoogleMaps()" class="w-full bg-slate-700 hover:bg-slate-800 text-white py-4 rounded-2xl text-base font-bold shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-map-location-dot"></i> เปิด Maps</button>
+        </div>
+        <div class="bg-gray-50 rounded-2xl p-3 text-sm border border-gray-200">
+          <div class="flex justify-between items-center mb-1"><div class="text-xs text-gray-500">พิกัด GPS</div><div id="m_accuracy" class="text-[10px] text-gray-400"></div></div>
+          <div id="m_location" class="font-bold text-blue-700">ยังไม่ได้ดึงตำแหน่ง</div>
+          <div id="m_address_status" class="text-[11px] text-gray-400 mt-1"></div>
+        </div>
+        <div>
+          <label class="text-sm font-bold text-gray-700">ชื่อสถานที่ <span class="text-red-500">*</span></label>
+          <input id="m_name" class="w-full mt-1 p-3 border border-gray-300 rounded-2xl outline-none focus:border-blue-500" placeholder="เช่น บ้านผู้ป่วย / จุดนัดพบ">
+        </div>
+        <div>
+          <label class="text-sm font-bold text-gray-700">หมวดหมู่</label>
+          <select id="m_category" class="w-full mt-1 p-3 border border-gray-300 rounded-2xl outline-none focus:border-blue-500 bg-white">
+            <option value="general">F/U</option>
+            <option value="hospital">1504</option>
+            <option value="home">1669</option>
+            <option value="meeting_point">โรงพยาบาล</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm font-bold text-gray-700">รายละเอียด</label>
+          <textarea id="m_detail" class="w-full mt-1 p-3 border border-gray-300 rounded-2xl outline-none focus:border-blue-500 h-24" placeholder="รายละเอียดเพิ่มเติม (ไม่บังคับ)"></textarea>
+        </div>
+        <div>
+          <label class="text-sm font-bold text-gray-700">ที่อยู่</label>
+          <input id="m_address" class="w-full mt-1 p-3 border border-gray-300 rounded-2xl outline-none focus:border-blue-500" placeholder="ที่อยู่ (ระบบเติมให้อัตโนมัติ แก้ไขได้)">
+        </div>
+        <div>
+          <label class="text-sm font-bold text-gray-700">เบอร์โทร</label>
+          <input id="m_tel" class="w-full mt-1 p-3 border border-gray-300 rounded-2xl outline-none focus:border-blue-500" placeholder="08x-xxx-xxxx (ไม่บังคับ)">
+        </div>
+        <button onclick="saveMobileLocation()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl text-lg font-bold shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> บันทึกหมุด</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const SUPABASE_URL='https://weneicuvfaiwdsokcgiq.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndlbmVpY3V2ZmFpd2Rzb2tjZ2lxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3ODg4NzgsImV4cCI6MjA5MzM2NDg3OH0.N8ON-b8daXauuCC0dW3fkpoLEew6Wj_w5aBM1cT8nzM';
+const LOGIN_EMAIL_DOMAIN='ems.localhost.com'; // ต้องตรงกับ email ใน Supabase Auth เช่น asakuratai@ems.localhost.com
+const ADMIN_API='https://weneicuvfaiwdsokcgiq.supabase.co/functions/v1/admin-users';
+const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+let currentUser=null,currentProfile=null,currentLevel=null,isPinningMode=false,tempMarker=null,editingLocationId=null,currentPage=1,rowsPerPage=10,filteredData=[],searchQuery='';window.mapData=[];window.mapMarkers=[];
+function usernameToEmail(u){const c=String(u||'').trim().toLowerCase();return c.includes('@')?c:`${c}@${LOGIN_EMAIL_DOMAIN}`}function generateClientId6(){const c='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';let id='';for(let i=0;i<6;i++)id+=c[Math.floor(Math.random()*c.length)];return id}function role(v){return String(v||'').trim().toLowerCase()}function canManageMap(){return currentLevel==='superadmin'}function canAddMap(){return currentLevel==='superadmin'||currentLevel==='staff'}function esc(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')}function categoryLabel(c){return ({general:'F/U',hospital:'1504',home:'1669',meeting_point:'โรงพยาบาล'}[c]||'F/U')}function categoryBadge(c){const map={general:'bg-slate-100 text-slate-700 border-slate-200',hospital:'bg-red-100 text-red-700 border-red-200',home:'bg-emerald-100 text-emerald-700 border-emerald-200',meeting_point:'bg-purple-100 text-purple-700 border-purple-200'};return map[c]||map.general}function getCategoryIcon(c){return ({general:'fa-clipboard-check',hospital:'fa-truck-medical',home:'fa-phone-volume',meeting_point:'fa-hospital'}[c]||'fa-location-dot')}function getVisibleMapData(){const cat=document.getElementById('mapCategoryFilter')?.value||'';return (window.mapData||[]).filter(r=>!cat||r[9]===cat)}
+async function initAuth(){const{data}=await supabaseClient.auth.getSession();if(data.session?.user){currentUser=data.session.user;await loadProfile()}updateAuthUI();await loadMapData()}async function loadProfile(){const{data,error}=await supabaseClient.from('profiles').select('*').eq('id',currentUser.id).single();if(error){currentProfile=null;currentLevel=null;return}currentProfile=data;currentLevel=role(data.role)}
+function toggleMobileMenu(forceClose=false){const m=document.getElementById('navMenu');if(forceClose){m.classList.add('hidden');m.classList.remove('flex')}else{m.classList.toggle('hidden');m.classList.toggle('flex')}}
+function switchView(view){const mapView=document.getElementById('mapViewSection'),dataView=document.getElementById('mapDataSection'),staffView=document.getElementById('staffViewSection'),trashView=document.getElementById('trashSection'),navMap=document.getElementById('navMap'),navData=document.getElementById('navData'),navStaff=document.getElementById('navStaff');[navMap,navData,navStaff].forEach(n=>{n.classList.replace('text-blue-600','text-gray-500');n.classList.remove('font-bold')});if(view==='map'){mapView.classList.remove('hidden');dataView.classList.add('hidden');staffView.classList.add('hidden');if(trashView)trashView.classList.add('hidden');navMap.classList.replace('text-gray-500','text-blue-600');navMap.classList.add('font-bold');document.body.classList.add('overflow-hidden');document.body.classList.replace('bg-gray-100','bg-gray-50');map.invalidateSize()}else if(view==='data'){mapView.classList.add('hidden');dataView.classList.remove('hidden');staffView.classList.add('hidden');if(trashView)trashView.classList.add('hidden');navData.classList.replace('text-gray-500','text-blue-600');navData.classList.add('font-bold');document.body.classList.remove('overflow-hidden');document.body.classList.replace('bg-gray-50','bg-gray-100');renderTable()}else if(view==='staff'){if(currentLevel!=='superadmin'){switchView('map');return}mapView.classList.add('hidden');dataView.classList.add('hidden');staffView.classList.remove('hidden');if(trashView)trashView.classList.add('hidden');navStaff.classList.replace('text-gray-500','text-blue-600');navStaff.classList.add('font-bold');document.body.classList.remove('overflow-hidden');document.body.classList.replace('bg-gray-50','bg-gray-100');loadStaffData()}}
+function updateAuthUI(){const a=document.getElementById('authSection'),navStaff=document.getElementById('navStaff');if(currentUser&&currentProfile){if(currentLevel==='superadmin'){navStaff.classList.remove('hidden');navStaff.classList.add('flex')}else{navStaff.classList.add('hidden');navStaff.classList.remove('flex')}const badge=currentLevel==='superadmin'?`<span class="bg-purple-100 text-purple-700 text-[10px] px-1.5 py-0.5 rounded border border-purple-200 ml-1">Super</span>`:`<span class="bg-green-100 text-green-700 text-[10px] px-1.5 py-0.5 rounded border border-green-200 ml-1">Staff</span>`;const pin=canAddMap()?`<button id="pinModeBtn" onclick="togglePinMode()" class="bg-blue-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg shadow-md hover:bg-blue-700 transition-all font-medium flex items-center justify-center"><i class="fa-solid fa-location-dot"></i><span class="hidden sm:inline ml-2">เพิ่มหมุด</span></button>`:'';a.innerHTML=`<div class="flex items-center gap-2 sm:gap-4">${pin}<button onclick="openMobileMode()" class="bg-green-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg shadow-md hover:bg-green-700 transition-all font-medium flex items-center justify-center" title="โหมดภาคสนาม"><i class="fa-solid fa-person-walking"></i><span class="hidden sm:inline ml-2">ภาคสนาม</span></button><div class="border-l border-gray-300 h-6 sm:h-8 hidden sm:block"></div><span class="text-gray-700 font-medium hidden md:flex items-center"><i class="fa-solid fa-user-shield mr-1"></i><span class="hidden lg:inline">${esc(currentProfile.display_name||currentProfile.room_or_username||currentUser.email)}</span>${badge}</span><button onclick="openChangeMyPassword()" class="text-blue-500 hover:bg-blue-50 px-2 py-2 sm:px-3 sm:py-2 rounded-lg transition-all flex items-center justify-center" title="เปลี่ยนรหัสผ่านของฉัน"><i class="fa-solid fa-key"></i><span class="hidden sm:inline ml-1">รหัส</span></button><button onclick="logout()" class="text-red-500 hover:bg-red-50 px-2 py-2 sm:px-3 sm:py-2 rounded-lg transition-all flex items-center justify-center" title="ออกจากระบบ"><i class="fa-solid fa-right-from-bracket"></i><span class="hidden sm:inline ml-1">ออก</span></button></div>`}else{isPinningMode=false;navStaff.classList.add('hidden');navStaff.classList.remove('flex');if(tempMarker)map.removeLayer(tempMarker);a.innerHTML=`<button onclick="showLogin()" class="bg-blue-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg shadow hover:bg-blue-700 transition-all flex items-center justify-center"><i class="fa-solid fa-right-to-bracket"></i><span class="hidden sm:inline ml-1">เข้าสู่ระบบ</span></button>`}if(!document.getElementById('mapDataSection').classList.contains('hidden'))renderTable()}
+function showLogin(){Swal.fire({title:'เข้าสู่ระบบผู้ดูแล',html:`<input type="text" id="loginUser" autocomplete="off" autocapitalize="none" spellcheck="false" class="swal2-input !w-[80%] !text-sm" placeholder="Username"><input type="password" id="loginPass" autocomplete="new-password" class="swal2-input !w-[80%] !text-sm" placeholder="Password">`,confirmButtonText:'<i class="fa-solid fa-right-to-bracket mr-2"></i>เข้าสู่ระบบ',confirmButtonColor:'#2563eb',showCancelButton:true,cancelButtonText:'<i class="fa-solid fa-xmark mr-2"></i>ยกเลิก',preConfirm:()=>{const user=document.getElementById('loginUser').value.trim(),pass=document.getElementById('loginPass').value;if(!user||!pass){Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบถ้วน');return false}return{user,pass}}}).then(async r=>{if(!r.isConfirmed)return;Swal.fire({title:'กำลังตรวจสอบ...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});const loginEmail=usernameToEmail(r.value.user);console.log('LOGIN EMAIL =',loginEmail);const{data,error}=await supabaseClient.auth.signInWithPassword({email:loginEmail,password:r.value.pass});if(error){console.error('LOGIN ERROR =',error);Swal.fire({icon:'error',title:'เข้าสู่ระบบล้มเหลว',html:`<div class="text-left text-sm leading-relaxed"><div><b>Email ที่ส่ง:</b> ${esc(loginEmail)}</div><div><b>Supabase error:</b> ${esc(error.message||'Unknown error')}</div><div class="mt-2 text-gray-500">ถ้าเป็น Invalid login credentials ให้เช็ค password / email ใน Authentication → Users อีกครั้ง</div></div>`});return}currentUser=data.user;await loadProfile();if(!currentProfile){await supabaseClient.auth.signOut();currentUser=null;currentLevel=null;Swal.fire({icon:'error',title:'ไม่พบ Profile',text:'บัญชีนี้ยังไม่ได้กำหนด role ในตาราง profiles'});updateAuthUI();return}updateAuthUI();await loadMapData();Swal.fire({icon:'success',title:'สำเร็จ',text:`ยินดีต้อนรับคุณ ${currentProfile.display_name||currentProfile.room_or_username}`,timer:1500,showConfirmButton:false})})}
+async function logout(){await supabaseClient.auth.signOut();currentUser=null;currentProfile=null;currentLevel=null;switchView('map');updateAuthUI();await loadMapData();Swal.fire({icon:'info',title:'ออกจากระบบแล้ว',timer:1000,showConfirmButton:false})}
+function openChangeMyPassword(){
+  if(!currentUser){
+    showLogin();
+    return;
+  }
+  Swal.fire({
+    title:'เปลี่ยนรหัสผ่านของฉัน',
+    html:`<div class="text-left space-y-3">
+      <div class="text-sm text-gray-600">ผู้ใช้: <b>${esc(currentProfile?.room_or_username||currentProfile?.display_name||currentUser.email)}</b></div>
+      <div><label class="text-xs font-bold text-gray-600">รหัสผ่านใหม่</label><input id="myNewPass" type="password" autocomplete="new-password" class="swal2-input !w-full !mx-0 !text-sm" placeholder="อย่างน้อย 8 ตัวอักษร"></div>
+      <div><label class="text-xs font-bold text-gray-600">ยืนยันรหัสผ่านใหม่</label><input id="myConfirmPass" type="password" autocomplete="new-password" class="swal2-input !w-full !mx-0 !text-sm" placeholder="พิมพ์รหัสผ่านอีกครั้ง"></div>
+      <div class="text-xs text-gray-500">หลังเปลี่ยนรหัสผ่าน แนะนำให้ออกจากระบบแล้ว login ใหม่ด้วยรหัสใหม่</div>
+    </div>`,
+    confirmButtonText:'<i class="fa-solid fa-key mr-1"></i> เปลี่ยนรหัสผ่าน',
+    confirmButtonColor:'#2563eb',
+    showCancelButton:true,
+    cancelButtonText:'ยกเลิก',
+    preConfirm:()=>{
+      const p1=document.getElementById('myNewPass').value;
+      const p2=document.getElementById('myConfirmPass').value;
+      if(!p1||p1.length<8){Swal.showValidationMessage('รหัสผ่านควรมีอย่างน้อย 8 ตัวอักษร');return false}
+      if(p1!==p2){Swal.showValidationMessage('รหัสผ่านทั้งสองช่องไม่ตรงกัน');return false}
+      return p1;
+    }
+  }).then(async r=>{
+    if(!r.isConfirmed)return;
+    Swal.fire({title:'กำลังเปลี่ยนรหัสผ่าน...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    const {error}=await supabaseClient.auth.updateUser({password:r.value});
+    if(error){
+      Swal.fire({icon:'error',title:'เปลี่ยนรหัสผ่านไม่สำเร็จ',text:error.message||'เกิดข้อผิดพลาด'});
+      return;
+    }
+    Swal.fire({icon:'success',title:'เปลี่ยนรหัสผ่านสำเร็จ',text:'กรุณาใช้รหัสผ่านใหม่ในการเข้าสู่ระบบครั้งถัดไป',timer:1800,showConfirmButton:false});
+  });
+}
+
+const normalMap=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}),satelliteMap=L.tileLayer('https://mt1.google.com/vt/lyrs=y&hl=th&x={x}&y={y}&z={z}'),map=L.map('map',{center:[13.7563,100.5018],zoom:6,layers:[normalMap]}),labelLayer=L.layerGroup();document.getElementById('map').classList.add('hide-labels');L.control.layers({'แผนที่ปกติ':normalMap,'ดาวเทียม':satelliteMap},{'ชื่อพิกัด':labelLayer},{collapsed:false}).addTo(map);map.on('overlayadd',e=>{if(e.name==='ชื่อพิกัด')document.getElementById('map').classList.remove('hide-labels')});map.on('overlayremove',e=>{if(e.name==='ชื่อพิกัด')document.getElementById('map').classList.add('hide-labels')});const redIcon=new L.Icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',shadowUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowSize:[41,41]}),markersLayer=L.layerGroup().addTo(map);
+async function writeActivityLog(action,targetId,detail={}){if(!currentUser)return;const{error}=await supabaseClient.from('activity_logs').insert({user_id:currentUser.id,action,target_table:'map_locations',target_id:targetId,detail});if(error)console.warn('activity log error',error)}async function loadMapData(){const{data,error}=await supabaseClient.from('map_locations').select('*').eq('is_active',true).order('created_at',{ascending:false});if(error){console.error(error);Swal.fire({icon:'error',title:'โหลดข้อมูลไม่สำเร็จ',text:error.message});return}window.mapData=(data||[]).map(i=>[i.id,i.name,i.lat,i.lng,i.detail||'',i.address||'',i.tel||'',i.created_by_name||'',i.updated_at||i.created_at||'',i.category||'general']);showMapMarkers(getVisibleMapData())}function showMapMarkers(data){window.mapMarkers=[];markersLayer.clearLayers();data.forEach((row,index)=>{const lat=parseFloat(row[2]),lng=parseFloat(row[3]),cat=row[9]||'general';if(!isNaN(lat)&&!isNaN(lng)){const tel=row[6]?String(row[6]).replace(/^'/,''):'';const edit=canManageMap()?`<div class="mt-3 pt-3 border-t border-gray-100"><button onclick="editPinById('${row[0]}')" class="w-full bg-amber-500 hover:bg-amber-600 text-white py-1.5 rounded-lg text-sm font-bold shadow-sm transition-all flex justify-center items-center"><i class="fa-solid fa-pen-to-square mr-2"></i> แก้ไขข้อมูล</button></div>`:'';const content=`<div class="p-1 min-w-[240px] max-w-[300px]"><div class="mb-2"><span class="inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-bold ${categoryBadge(cat)}"><i class="fa-solid ${getCategoryIcon(cat)}"></i>${categoryLabel(cat)}</span></div><h3 class="font-bold text-blue-600 text-lg mb-1 leading-tight">${esc(row[1])}</h3><p class="text-sm text-gray-600 mb-2 border-b pb-2 break-words">${esc(row[4]||'-')}</p><div class="text-sm space-y-2 text-gray-700 mt-3"><div class="flex items-start"><i class="fa-solid fa-map-pin mt-1 w-6 text-center mr-1 text-red-500"></i><span class="leading-tight">${esc(row[5]||'ไม่มีข้อมูลที่อยู่')}</span></div><div><a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="flex items-center text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-all w-full border border-blue-100 shadow-sm"><i class="fa-solid fa-location-arrow w-5 text-center mr-2"></i><div><div class="font-bold">นำทางไปที่นี่</div><div class="text-[10px] text-gray-500">พิกัด: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div></div></a></div><div>${tel?`<a href="tel:${esc(tel)}" class="flex items-center text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 px-3 py-2 rounded-lg transition-all w-full border border-green-100 shadow-sm"><i class="fa-solid fa-phone-volume w-5 text-center mr-2"></i><div class="font-bold">โทร: ${esc(tel)}</div></a>`:`<div class="flex items-center text-gray-400 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100 italic"><i class="fa-solid fa-phone w-5 text-center mr-2"></i> ไม่มีเบอร์ติดต่อ</div>`}</div></div>${edit}</div>`;const marker=L.marker([lat,lng],{icon:redIcon}).bindPopup(content);marker.bindTooltip(row[1],{permanent:true,direction:'bottom',offset:[0,5],className:'custom-label'});markersLayer.addLayer(marker);window.mapMarkers.push(marker)}else window.mapMarkers.push(null)});if(!document.getElementById('mapDataSection').classList.contains('hidden'))renderTable()}function togglePinMode(){if(!canAddMap()){showLogin();return}switchView('map');isPinningMode=!isPinningMode;const btn=document.getElementById('pinModeBtn'),mapContainer=document.getElementById('map');if(isPinningMode){btn.innerHTML='<i class="fa-solid fa-xmark"></i><span class="hidden sm:inline ml-2">ยกเลิกเพิ่มหมุด</span>';btn.classList.replace('bg-blue-600','bg-red-500');btn.classList.replace('hover:bg-blue-700','hover:bg-red-600');mapContainer.classList.add('cursor-pinning');Swal.fire({toast:true,position:'top',icon:'info',title:'คลิกบนแผนที่เพื่อวางหมุด',showConfirmButton:false,timer:2000})}else cancelProcess()}
+function minimizeForm(){document.getElementById('formModal').classList.add('hidden');document.getElementById('minimizedBar').classList.remove('hidden')}function maximizeForm(){document.getElementById('minimizedBar').classList.add('hidden');document.getElementById('formModal').classList.remove('hidden')}function cancelProcess(){const was=editingLocationId!==null;isPinningMode=false;editingLocationId=null;const btn=document.getElementById('pinModeBtn'),mc=document.getElementById('map');if(btn){btn.innerHTML='<i class="fa-solid fa-location-dot"></i><span class="hidden sm:inline ml-2">เพิ่มหมุด</span>';btn.classList.replace('bg-red-500','bg-blue-600');btn.classList.replace('hover:bg-red-600','hover:bg-blue-700')}mc.classList.remove('cursor-pinning');if(tempMarker){map.removeLayer(tempMarker);tempMarker=null}document.getElementById('formTitle').innerHTML='ปักหมุดจุดใหม่';document.getElementById('saveBtn').innerHTML='บันทึกหมุด';document.getElementById('deleteBtn').classList.add('hidden');document.getElementById('formModal').classList.add('hidden');document.getElementById('minimizedBar').classList.add('hidden');document.querySelectorAll('#formModal input,#formModal textarea').forEach(i=>i.value='');const catEl=document.getElementById('category');if(catEl)catEl.value='general';if(was)showMapMarkers(window.mapData)}function bindTempMarkerDrag(){if(!tempMarker)return;tempMarker.off('dragend');tempMarker.on('dragend',e=>{const p=e.target.getLatLng();document.getElementById('lat').value=p.lat.toFixed(6);document.getElementById('lng').value=p.lng.toFixed(6)})}function updateMarkerFromInput(){if(!tempMarker)return;const la=parseFloat(document.getElementById('lat').value),ln=parseFloat(document.getElementById('lng').value);if(!isNaN(la)&&!isNaN(ln)){const np=new L.LatLng(la,ln);tempMarker.setLatLng(np);map.panTo(np,{animate:true})}}
+document.getElementById('lat').addEventListener('input',updateMarkerFromInput);document.getElementById('lng').addEventListener('input',updateMarkerFromInput);map.on('click',e=>{if(!isPinningMode)return;document.getElementById('map').classList.remove('cursor-pinning');const lat=e.latlng.lat.toFixed(6),lng=e.latlng.lng.toFixed(6);if(!tempMarker){tempMarker=L.marker([lat,lng],{icon:redIcon,draggable:true}).addTo(map);bindTempMarkerDrag()}else tempMarker.setLatLng(e.latlng);map.panTo(e.latlng,{animate:true});document.getElementById('lat').value=lat;document.getElementById('lng').value=lng;const addressInput=document.getElementById('address');if(addressInput&&!addressInput.value)reverseGeocode(parseFloat(lat),parseFloat(lng),'address');maximizeForm()});
+function useMyLocation(){if(!canAddMap()){showLogin();return}if(!navigator.geolocation){Swal.fire({icon:'error',title:'ไม่รองรับ',text:'เบราว์เซอร์นี้ไม่รองรับการดึงตำแหน่งปัจจุบัน'});return}Swal.fire({title:'กำลังค้นหาตำแหน่ง...',text:'กรุณาอนุญาตการเข้าถึงตำแหน่งในเบราว์เซอร์',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});navigator.geolocation.getCurrentPosition(pos=>{const lat=pos.coords.latitude.toFixed(6),lng=pos.coords.longitude.toFixed(6),np=L.latLng(parseFloat(lat),parseFloat(lng));document.getElementById('lat').value=lat;document.getElementById('lng').value=lng;if(!tempMarker)tempMarker=L.marker(np,{icon:redIcon,draggable:true}).addTo(map);else tempMarker.setLatLng(np);bindTempMarkerDrag();isPinningMode=true;document.getElementById('map').classList.remove('cursor-pinning');document.getElementById('formModal').classList.remove('hidden');document.getElementById('minimizedBar').classList.add('hidden');map.flyTo(np,17,{animate:true,duration:1.2});Swal.close()},err=>{let msg='ไม่สามารถดึงตำแหน่งได้';if(err.code===err.PERMISSION_DENIED)msg='กรุณาอนุญาตการเข้าถึงตำแหน่งในเบราว์เซอร์';else if(err.code===err.POSITION_UNAVAILABLE)msg='ไม่พบตำแหน่งปัจจุบัน';else if(err.code===err.TIMEOUT)msg='ค้นหาตำแหน่งนานเกินไป กรุณาลองใหม่';Swal.fire({icon:'error',title:'ดึงตำแหน่งไม่สำเร็จ',text:msg})},{enableHighAccuracy:true,timeout:10000,maximumAge:0})}
+function editPinById(id){const idx=window.mapData.findIndex(r=>r[0]===id);if(idx>-1)editPin(idx)}function editPin(index){if(!canManageMap())return;showMapMarkers(window.mapData);const row=window.mapData[index];editingLocationId=row[0];map.closePopup();if(window.mapMarkers[index])markersLayer.removeLayer(window.mapMarkers[index]);isPinningMode=true;document.getElementById('map').classList.remove('cursor-pinning');document.getElementById('name').value=row[1]||'';document.getElementById('lat').value=parseFloat(row[2]).toFixed(6);document.getElementById('lng').value=parseFloat(row[3]).toFixed(6);document.getElementById('detail').value=row[4]||'';document.getElementById('address').value=row[5]||'';document.getElementById('tel').value=row[6]||'';document.getElementById('category').value=row[9]||'general';document.getElementById('formTitle').innerHTML='แก้ไขข้อมูลสถานที่';document.getElementById('saveBtn').innerHTML='บันทึกการแก้ไข';document.getElementById('deleteBtn').classList.remove('hidden');if(tempMarker)map.removeLayer(tempMarker);tempMarker=L.marker([row[2],row[3]],{icon:redIcon,draggable:true}).addTo(map);bindTempMarkerDrag();document.getElementById('formModal').classList.remove('hidden');document.getElementById('minimizedBar').classList.add('hidden');map.panTo([row[2],row[3]],{animate:true})}
+async function saveData(){if(!currentUser||!canAddMap()){showLogin();return}if(editingLocationId&&!canManageMap()){Swal.fire({icon:'error',title:'ไม่มีสิทธิ์',text:'Staff เพิ่มหมุดได้ แต่แก้ไขข้อมูลเดิมไม่ได้'});return}const payload={name:document.getElementById('name').value.trim(),lat:parseFloat(document.getElementById('lat').value),lng:parseFloat(document.getElementById('lng').value),category:document.getElementById('category').value||'general',detail:document.getElementById('detail').value.trim(),address:document.getElementById('address').value.trim(),tel:document.getElementById('tel').value.trim(),created_by_name:currentProfile?.display_name||currentProfile?.room_or_username||currentUser.email};if(!payload.name||isNaN(payload.lat)||isNaN(payload.lng)){Swal.fire({icon:'warning',title:'ข้อมูลไม่ครบ',text:'กรุณากรอกชื่อสถานที่และพิกัดให้ครบถ้วน'});return}Swal.fire({title:'กำลังบันทึกข้อมูล...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});let error;if(editingLocationId){({error}=await supabaseClient.from('map_locations').update({name:payload.name,lat:payload.lat,lng:payload.lng,category:payload.category,detail:payload.detail,address:payload.address,tel:payload.tel,updated_by:currentUser.id,updated_at:new Date().toISOString()}).eq('id',editingLocationId));if(!error)await writeActivityLog('update_location',editingLocationId,{name:payload.name,category:payload.category})}else{let insertData={id:generateClientId6(),name:payload.name,lat:payload.lat,lng:payload.lng,category:payload.category,detail:payload.detail,address:payload.address,tel:payload.tel,is_active:true,created_by:currentUser.id,created_by_name:payload.created_by_name};for(let attempt=0;attempt<3;attempt++){const res=await supabaseClient.from('map_locations').insert(insertData);error=res.error;if(!error)break;if(String(error.message||'').includes('duplicate key'))insertData.id=generateClientId6();else break}if(!error)await writeActivityLog('create_location',insertData.id,{name:payload.name,category:payload.category})}if(error){Swal.fire({icon:'error',title:'บันทึกไม่สำเร็จ',text:error.message});return}Swal.fire({icon:'success',title:'สำเร็จ!',text:editingLocationId?'อัปเดตข้อมูลเรียบร้อยแล้ว':'บันทึกจุดปักหมุดเรียบร้อยแล้ว',timer:1500,showConfirmButton:false}).then(async()=>{cancelProcess();await loadMapData();map.flyTo([payload.lat,payload.lng],16,{animate:true,duration:1.5})})}async function deletePin(){if(!canManageMap()||!editingLocationId)return;const r=await Swal.fire({title:'ยืนยันการลบหมุด?',text:'คุณต้องการลบสถานที่นี้ใช่หรือไม่? ระบบจะซ่อนข้อมูลไว้และยังสามารถกู้คืนจากฐานข้อมูลได้',icon:'warning',showCancelButton:true,confirmButtonColor:'#ef4444',cancelButtonColor:'#9ca3af',confirmButtonText:'<i class="fa-solid fa-trash mr-1"></i> ใช่, ลบเลย!',cancelButtonText:'ยกเลิก'});if(!r.isConfirmed)return;Swal.fire({title:'กำลังลบข้อมูล...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});const row=window.mapData.find(r=>r[0]===editingLocationId);const{error}=await supabaseClient.from('map_locations').update({is_active:false,updated_by:currentUser.id,updated_at:new Date().toISOString()}).eq('id',editingLocationId);if(error){Swal.fire({icon:'error',title:'ลบไม่สำเร็จ',text:error.message});return}await writeActivityLog('soft_delete_location',editingLocationId,{name:row?.[1]||''});Swal.fire({icon:'success',title:'ลบสำเร็จ!',text:'ข้อมูลถูกซ่อนแล้ว ไม่ได้ลบออกจากฐานข้อมูลจริง',timer:1500,showConfirmButton:false}).then(async()=>{cancelProcess();await loadMapData()})}function searchMapLocations(){const input=document.getElementById('mapSearchInput'),box=document.getElementById('mapSearchResults'),cat=document.getElementById('mapCategoryFilter')?.value||'';const kw=input.value.trim().toLowerCase();const base=(window.mapData||[]).filter(r=>!cat||r[9]===cat);if(!kw){box.classList.add('hidden');box.innerHTML='';return}const results=base.map(row=>({row,index:window.mapData.findIndex(r=>r[0]===row[0])})).filter(({row})=>String(row[1]||'').toLowerCase().includes(kw)||String(row[4]||'').toLowerCase().includes(kw)||String(row[5]||'').toLowerCase().includes(kw)||String(row[6]||'').toLowerCase().includes(kw)||categoryLabel(row[9]).toLowerCase().includes(kw)).slice(0,12);if(!results.length){box.innerHTML='<div class="p-4 text-sm text-gray-500 text-center">ไม่พบข้อมูลสถานที่</div>';box.classList.remove('hidden');return}box.innerHTML=results.map(({row,index})=>`<button onclick="goToMapLocation(${index})" class="w-full text-left p-3 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors"><div class="font-bold text-blue-700 text-sm flex items-center gap-2"><i class="fa-solid fa-location-dot text-red-500"></i><span>${esc(row[1]||'-')}</span><span class="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] ${categoryBadge(row[9])}">${categoryLabel(row[9])}</span></div><div class="text-xs text-gray-500 mt-1 pl-6 truncate">${esc(row[5]||'ไม่มีข้อมูลที่อยู่')}</div></button>`).join('');box.classList.remove('hidden')}function goToMapLocation(index){const row=window.mapData[index];if(!row)return;const lat=parseFloat(row[2]),lng=parseFloat(row[3]);if(isNaN(lat)||isNaN(lng))return;switchView('map');map.flyTo([lat,lng],16,{animate:true,duration:1.2});setTimeout(()=>{if(window.mapMarkers[index])window.mapMarkers[index].openPopup()},700);document.getElementById('mapSearchResults').classList.add('hidden')}function clearMapSearch(){document.getElementById('mapSearchInput').value='';const b=document.getElementById('mapSearchResults');b.innerHTML='';b.classList.add('hidden');showMapMarkers(getVisibleMapData())}
+function searchData(){searchQuery=document.getElementById('searchInput').value.toLowerCase();currentPage=1;renderTable()}function copyToClipboard(text){navigator.clipboard.writeText(text).then(()=>Swal.fire({toast:true,position:'top-end',icon:'success',title:'คัดลอกพิกัดแล้ว!',showConfirmButton:false,timer:1500}))}
+function renderTable(){const manage=canManageMap(),th=document.getElementById('thAction'),catFilter=document.getElementById('dataCategoryFilter')?.value||'';manage?th.classList.remove('hidden'):th.classList.add('hidden');filteredData=(window.mapData||[]).filter(row=>(!catFilter||row[9]===catFilter)&&(!searchQuery||String(row[1]||'').toLowerCase().includes(searchQuery)||String(row[4]||'').toLowerCase().includes(searchQuery)||String(row[5]||'').toLowerCase().includes(searchQuery)||String(row[6]||'').toLowerCase().includes(searchQuery)||categoryLabel(row[9]).toLowerCase().includes(searchQuery)));const totalRows=filteredData.length,totalPages=Math.ceil(totalRows/rowsPerPage)||1;if(currentPage>totalPages)currentPage=totalPages;if(currentPage<1)currentPage=1;const startIdx=(currentPage-1)*rowsPerPage,endIdx=Math.min(startIdx+rowsPerPage,totalRows),tbody=document.getElementById('mapDataTableBody');tbody.innerHTML='';if(totalRows===0){tbody.innerHTML=`<tr><td colspan="${manage?7:6}" class="p-8 text-center text-gray-500 font-medium"><i class="fa-regular fa-folder-open text-3xl mb-2 block text-gray-300"></i> ไม่พบข้อมูลที่ค้นหา</td></tr>`}else{for(let i=startIdx;i<endIdx;i++){const row=filteredData[i],originalIndex=window.mapData.findIndex(o=>o===row),latNum=parseFloat(row[2]),lngNum=parseFloat(row[3]),lat=!isNaN(latNum)?latNum.toFixed(5):'-',lng=!isNaN(lngNum)?lngNum.toFixed(5):'-',coordText=`${lat}, ${lng}`,tel=String(row[6]||'').replace(/^'/,'');const action=manage?`<td class="p-4 align-middle"><div class="flex justify-center gap-2"><button onclick="editFromTable(${originalIndex})" class="px-3 py-1.5 bg-amber-100 text-amber-700 hover:bg-amber-200 hover:shadow-md font-bold rounded-lg transition-all" title="แก้ไข"><i class="fa-solid fa-pen"></i></button><button onclick="deleteFromTable(${originalIndex})" class="px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 hover:shadow-md font-bold rounded-lg transition-all" title="ลบ"><i class="fa-solid fa-trash"></i></button></div></td>`:'';tbody.innerHTML+=`<tr class="hover:bg-blue-50/50 transition-colors group"><td class="p-4 text-center text-gray-500 font-medium">${startIdx+(i-startIdx)+1}</td><td class="p-4 font-bold text-blue-700 group-hover:text-blue-800 transition-colors">${esc(row[1]||'-')}</td><td class="p-4"><span class="inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-bold ${categoryBadge(row[9])}"><i class="fa-solid ${getCategoryIcon(row[9])}"></i>${categoryLabel(row[9])}</span></td><td class="p-4 text-gray-600 text-sm"><div class="flex items-center gap-2"><span>${coordText}</span><button onclick="copyToClipboard('${coordText}')" class="flex items-center justify-center w-7 h-7 bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-md transition-colors shadow-sm cursor-pointer" title="คัดลอกพิกัด"><i class="fa-regular fa-copy"></i></button><a href="https://www.google.com/maps/search/?api=1&query=${coordText}" target="_blank" class="flex items-center justify-center w-7 h-7 bg-red-100 text-red-500 hover:bg-red-500 hover:text-white rounded-md transition-colors shadow-sm cursor-pointer" title="ดูบน Google Maps"><i class="fa-solid fa-map-marker-alt"></i></a></div></td><td class="p-4 text-gray-600 text-sm truncate max-w-[200px]" title="${esc(row[5]||'-')}">${esc(row[5]||'-')}</td><td class="p-4">${tel?`<div class="flex items-center gap-2"><span class="text-gray-600 text-sm">${esc(tel)}</span><a href="tel:${esc(tel)}" class="flex items-center justify-center w-7 h-7 bg-green-100 text-green-600 hover:bg-green-500 hover:text-white rounded-md transition-colors shadow-sm cursor-pointer"><i class="fa-solid fa-phone"></i></a></div>`:`<span class="text-gray-400 italic text-xs">ไม่มีข้อมูล</span>`}</td>${action}</tr>`}}document.getElementById('pageInfoStart').innerText=totalRows===0?0:startIdx+1;document.getElementById('pageInfoEnd').innerText=endIdx;document.getElementById('pageInfoTotal').innerText=totalRows;document.getElementById('currentPageDisplay').innerText=currentPage;document.getElementById('prevPageBtn').disabled=currentPage===1;document.getElementById('nextPageBtn').disabled=currentPage===totalPages}function updateRowsPerPage(){rowsPerPage=parseInt(document.getElementById('rowsPerPage').value,10);currentPage=1;renderTable()}function changePage(step){currentPage+=step;renderTable()}function editFromTable(index){if(!canManageMap())return;switchView('map');editPin(index)}function deleteFromTable(index){if(!canManageMap())return;const row=window.mapData[index];if(!row)return;editingLocationId=row[0];deletePin()}
+
+
+async function switchToTrash(){
+  if(currentLevel!=='superadmin'){Swal.fire({icon:'error',title:'ไม่มีสิทธิ์'});return}
+  document.getElementById('mapViewSection').classList.add('hidden');
+  document.getElementById('mapDataSection').classList.add('hidden');
+  document.getElementById('staffViewSection').classList.add('hidden');
+  document.getElementById('trashSection').classList.remove('hidden');
+  document.body.classList.remove('overflow-hidden');
+  document.body.classList.replace('bg-gray-50','bg-gray-100');
+  await loadTrash();
+}
+async function loadTrash(){
+  if(currentLevel!=='superadmin')return;
+  const{data,error}=await supabaseClient.from('map_locations').select('*').eq('is_active',false).order('updated_at',{ascending:false});
+  const tb=document.getElementById('trashTableBody');
+  tb.innerHTML='';
+  if(error){tb.innerHTML=`<tr><td colspan="5" class="p-8 text-center text-red-500">โหลดถังขยะไม่สำเร็จ: ${esc(error.message)}</td></tr>`;return}
+  if(!data||data.length===0){tb.innerHTML='<tr><td colspan="5" class="p-8 text-center text-gray-500">ไม่มีหมุดในถังขยะ</td></tr>';return}
+  data.forEach(r=>{
+    const coord=`${Number(r.lat).toFixed(5)}, ${Number(r.lng).toFixed(5)}`;
+    tb.innerHTML+=`<tr class="hover:bg-red-50/40"><td class="p-4 font-bold text-gray-800">${esc(r.name||'-')}</td><td class="p-4"><span class="inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-bold ${categoryBadge(r.category)}"><i class="fa-solid ${getCategoryIcon(r.category)}"></i>${categoryLabel(r.category)}</span></td><td class="p-4 text-gray-600 truncate max-w-[260px]" title="${esc(r.address||'-')}">${esc(r.address||'-')}</td><td class="p-4 text-gray-600 text-sm">${coord}</td><td class="p-4"><div class="flex justify-center gap-2"><button onclick="restoreLocation('${r.id}')" class="px-3 py-2 bg-green-100 text-green-700 hover:bg-green-200 rounded-lg font-bold"><i class="fa-solid fa-rotate-left mr-1"></i>กู้คืน</button><button onclick="deletePermanent('${r.id}')" class="px-3 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-bold"><i class="fa-solid fa-skull-crossbones mr-1"></i>ลบถาวร</button></div></td></tr>`;
+  });
+}
+async function restoreLocation(id){
+  if(currentLevel!=='superadmin')return;
+  const confirm=await Swal.fire({title:'กู้คืนหมุด?',text:'ต้องการนำหมุดนี้กลับมาแสดงในข้อมูลแผนที่อีกครั้งหรือไม่',icon:'question',showCancelButton:true,confirmButtonColor:'#16a34a',cancelButtonColor:'#9ca3af',confirmButtonText:'กู้คืน',cancelButtonText:'ยกเลิก'});
+  if(!confirm.isConfirmed)return;
+  Swal.fire({title:'กำลังกู้คืน...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+  const{data:restored,error}=await supabaseClient.from('map_locations').update({is_active:true,updated_by:currentUser.id,updated_at:new Date().toISOString()}).eq('id',id).select('*').single();
+  if(error){Swal.fire({icon:'error',title:'กู้คืนไม่สำเร็จ',text:error.message});return}
+  await writeActivityLog('restore_location',id,{name:restored?.name||''});
+  await loadMapData();
+  await loadTrash();
+  switchView('data');
+  if(restored?.lat&&restored?.lng){setTimeout(()=>{switchView('map');map.flyTo([restored.lat,restored.lng],16,{animate:true,duration:1.2});setTimeout(()=>{const idx=window.mapData.findIndex(r=>r[0]===id);if(idx>-1&&window.mapMarkers[idx])window.mapMarkers[idx].openPopup()},800)},300)}
+  Swal.fire({icon:'success',title:'กู้คืนแล้ว',text:'หมุดกลับมาในข้อมูลแผนที่แล้ว',timer:1600,showConfirmButton:false});
+}
+async function deletePermanent(id){
+  if(currentLevel!=='superadmin')return;
+  const confirm=await Swal.fire({title:'ลบถาวร?',html:'การลบนี้จะลบออกจากฐานข้อมูลจริง<br><b class="text-red-600">ไม่สามารถกู้คืนได้</b>',icon:'warning',showCancelButton:true,confirmButtonColor:'#dc2626',cancelButtonColor:'#9ca3af',confirmButtonText:'ลบถาวร',cancelButtonText:'ยกเลิก'});
+  if(!confirm.isConfirmed)return;
+  Swal.fire({title:'กำลังลบถาวร...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+  const{error}=await supabaseClient.from('map_locations').delete().eq('id',id);
+  if(error){Swal.fire({icon:'error',title:'ลบถาวรไม่สำเร็จ',text:error.message});return}
+  await writeActivityLog('delete_permanent',id,{});
+  await loadTrash();
+  Swal.fire({icon:'success',title:'ลบถาวรแล้ว',timer:1400,showConfirmButton:false});
+}
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e;const btn=document.getElementById('installAppBtn');if(btn)btn.classList.remove('hidden')});
+function installApp(){if(!deferredPrompt)return;deferredPrompt.prompt();deferredPrompt.userChoice.finally(()=>{deferredPrompt=null;const btn=document.getElementById('installAppBtn');if(btn)btn.classList.add('hidden')})}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./service-worker.js').catch(err=>console.warn('service worker register failed',err))})}
+async function reverseGeocode(lat,lng,targetId='m_address'){
+  const status=document.getElementById('m_address_status');
+  if(status)status.innerText='กำลังค้นหาที่อยู่อัตโนมัติ...';
+  try{
+    const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&accept-language=th&zoom=18&addressdetails=1`;
+    const res=await fetch(url,{headers:{'Accept':'application/json'}});
+    const data=await res.json();
+    const address=data.display_name||'';
+    const el=document.getElementById(targetId);
+    if(address&&el&&!el.value)el.value=address;
+    if(status)status.innerText=address?'เติมที่อยู่ให้อัตโนมัติแล้ว':'ไม่พบที่อยู่จากพิกัดนี้';
+    return address;
+  }catch(e){console.warn('reverse geocode error',e);if(status)status.innerText='ดึงที่อยู่อัตโนมัติไม่สำเร็จ';return ''}
+}
+function openMobileGoogleMaps(){
+  if(mobileLat===null||mobileLng===null){Swal.fire({icon:'info',title:'ยังไม่มีพิกัด',text:'กรุณากดรีเฟรช GPS ก่อน'});return}
+  window.open(`https://www.google.com/maps?q=${mobileLat},${mobileLng}`,'_blank');
+}
+let mobileLat=null,mobileLng=null;
+function openMobileMode(){
+  if(!canAddMap()){showLogin();return}
+  mobileLat=null;mobileLng=null;
+  document.getElementById('m_location').innerText='กำลังดึงตำแหน่ง...';const accEl=document.getElementById('m_accuracy');if(accEl)accEl.innerText='';const addrStatus=document.getElementById('m_address_status');if(addrStatus)addrStatus.innerText='';
+  document.getElementById('m_name').value='';
+  document.getElementById('m_detail').value='';
+  document.getElementById('m_address').value='';
+  document.getElementById('m_tel').value='';
+  document.getElementById('m_category').value='general';
+  document.getElementById('mobileMode').classList.remove('hidden');
+  getMobileLocation();
+}
+function closeMobileMode(){document.getElementById('mobileMode').classList.add('hidden')}
+function getMobileLocation(){
+  if(!navigator.geolocation){document.getElementById('m_location').innerText='เบราว์เซอร์ไม่รองรับ GPS';return}
+  document.getElementById('m_location').innerText='กำลังค้นหาตำแหน่ง...';
+  const addrStatus=document.getElementById('m_address_status');if(addrStatus)addrStatus.innerText='';
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    mobileLat=pos.coords.latitude;mobileLng=pos.coords.longitude;
+    document.getElementById('m_location').innerText=`${mobileLat.toFixed(6)}, ${mobileLng.toFixed(6)}`;
+    const accEl=document.getElementById('m_accuracy');if(accEl)accEl.innerText=pos.coords.accuracy?`±${Math.round(pos.coords.accuracy)} ม.`:'';
+    const addrEl=document.getElementById('m_address');if(addrEl)addrEl.value='';
+    await reverseGeocode(mobileLat,mobileLng,'m_address');
+  },err=>{let msg='ดึงตำแหน่งไม่สำเร็จ';if(err.code===err.PERMISSION_DENIED)msg='กรุณาอนุญาตตำแหน่งในเบราว์เซอร์';else if(err.code===err.TIMEOUT)msg='ค้นหาตำแหน่งนานเกินไป';document.getElementById('m_location').innerText=msg},{enableHighAccuracy:true,timeout:12000,maximumAge:0});
+}
+async function saveMobileLocation(){
+  if(!canAddMap()){showLogin();return}
+  const name=document.getElementById('m_name').value.trim();
+  const category=document.getElementById('m_category').value||'general';
+  const detail=document.getElementById('m_detail').value.trim();
+  const address=document.getElementById('m_address').value.trim();
+  const tel=document.getElementById('m_tel').value.trim();
+  if(!name){Swal.fire({icon:'warning',title:'กรุณากรอกชื่อสถานที่'});return}
+  if(mobileLat===null||mobileLng===null){Swal.fire({icon:'warning',title:'ยังไม่มีพิกัด',text:'กรุณากดดึงตำแหน่งปัจจุบันก่อน'});return}
+  Swal.fire({title:'กำลังบันทึกหมุด...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+  let insertData={id:generateClientId6(),name,lat:mobileLat,lng:mobileLng,category,detail,address,tel,is_active:true,created_by:currentUser.id,created_by_name:currentProfile?.display_name||currentProfile?.room_or_username||currentUser.email};
+  let error;
+  for(let attempt=0;attempt<3;attempt++){const res=await supabaseClient.from('map_locations').insert(insertData);error=res.error;if(!error)break;if(String(error.message||'').includes('duplicate key'))insertData.id=generateClientId6();else break}
+  if(error){Swal.fire({icon:'error',title:'บันทึกไม่สำเร็จ',text:error.message});return}
+  await writeActivityLog('create_mobile_location',insertData.id,{name,category,address});
+  closeMobileMode();
+  await loadMapData();
+  map.flyTo([mobileLat,mobileLng],16,{animate:true,duration:1.2});
+  Swal.fire({icon:'success',title:'บันทึกสำเร็จ',timer:1500,showConfirmButton:false});
+}
+async function adminCall(action,payload={}){
+  const{data:{session}}=await supabaseClient.auth.getSession();
+  if(!session)throw new Error('กรุณาเข้าสู่ระบบก่อน');
+  const res=await fetch(ADMIN_API,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({action,...payload})});
+  const data=await res.json().catch(()=>({error:'Invalid server response'}));
+  if(!res.ok||data.error)throw new Error(data.error||'Admin API error');
+  return data;
+}
+function openCreateUserModal(){
+  if(currentLevel!=='superadmin')return;
+  Swal.fire({
+    title:'เพิ่มผู้ใช้ใหม่',
+    html:`<div class="text-left space-y-3">
+      <div><label class="text-xs font-bold text-gray-600">Username</label><input id="newUserUsername" class="swal2-input !w-full !mx-0 !text-sm" autocomplete="off" placeholder="เช่น staff1"></div>
+      <div><label class="text-xs font-bold text-gray-600">ชื่อแสดงผล</label><input id="newUserDisplay" class="swal2-input !w-full !mx-0 !text-sm" autocomplete="off" placeholder="เช่น Staff 1"></div>
+      <div><label class="text-xs font-bold text-gray-600">Password</label><input id="newUserPassword" type="password" class="swal2-input !w-full !mx-0 !text-sm" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร"></div>
+      <div class="text-xs text-gray-500">ระบบจะสร้างอีเมลเป็น username@${LOGIN_EMAIL_DOMAIN} และกำหนด role เป็น staff</div>
+    </div>`,
+    confirmButtonText:'<i class="fa-solid fa-user-plus mr-1"></i> เพิ่มผู้ใช้',
+    confirmButtonColor:'#2563eb',
+    showCancelButton:true,
+    cancelButtonText:'ยกเลิก',
+    preConfirm:()=>{
+      const username=document.getElementById('newUserUsername').value.trim().toLowerCase();
+      const display=document.getElementById('newUserDisplay').value.trim();
+      const password=document.getElementById('newUserPassword').value;
+      if(!username||!password){Swal.showValidationMessage('กรุณากรอก Username และ Password');return false}
+      if(!/^[a-z0-9._-]+$/.test(username)){Swal.showValidationMessage('Username ใช้ได้เฉพาะ a-z, 0-9, จุด, ขีดกลาง, ขีดล่าง');return false}
+      if(password.length<8){Swal.showValidationMessage('Password ควรมีอย่างน้อย 8 ตัวอักษร');return false}
+      return{username,display_name:display||username,password};
+    }
+  }).then(async r=>{
+    if(!r.isConfirmed)return;
+    Swal.fire({title:'กำลังเพิ่มผู้ใช้...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    try{
+      await adminCall('createUser',{username:r.value.username,password:r.value.password,display_name:r.value.display_name});
+      Swal.fire({icon:'success',title:'เพิ่มผู้ใช้สำเร็จ',text:`สร้างบัญชี ${r.value.username} แล้ว`,timer:1600,showConfirmButton:false});
+      await loadStaffData();
+    }catch(e){Swal.fire({icon:'error',title:'เพิ่มผู้ใช้ไม่สำเร็จ',text:e.message||'เกิดข้อผิดพลาด'});}
+  });
+}
+function openResetPasswordModal(userId,username){
+  if(currentLevel!=='superadmin')return;
+  Swal.fire({
+    title:'รีเซ็ตรหัสผ่าน',
+    html:`<div class="text-left"><div class="text-sm text-gray-600 mb-3">ผู้ใช้: <b>${esc(username||'-')}</b></div><input id="resetPasswordInput" type="password" class="swal2-input !w-full !mx-0 !text-sm" autocomplete="new-password" placeholder="รหัสผ่านใหม่ อย่างน้อย 8 ตัวอักษร"></div>`,
+    confirmButtonText:'<i class="fa-solid fa-key mr-1"></i> เปลี่ยนรหัสผ่าน',
+    confirmButtonColor:'#2563eb',
+    showCancelButton:true,
+    cancelButtonText:'ยกเลิก',
+    preConfirm:()=>{
+      const password=document.getElementById('resetPasswordInput').value;
+      if(!password||password.length<8){Swal.showValidationMessage('Password ควรมีอย่างน้อย 8 ตัวอักษร');return false}
+      return{password};
+    }
+  }).then(async r=>{
+    if(!r.isConfirmed)return;
+    Swal.fire({title:'กำลังเปลี่ยนรหัสผ่าน...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    try{
+      await adminCall('resetPassword',{user_id:userId,password:r.value.password});
+      Swal.fire({icon:'success',title:'เปลี่ยนรหัสผ่านสำเร็จ',timer:1500,showConfirmButton:false});
+    }catch(e){Swal.fire({icon:'error',title:'เปลี่ยนรหัสผ่านไม่สำเร็จ',text:e.message||'เกิดข้อผิดพลาด'});}
+  });
+}
+async function deleteUserFromWeb(userId,username){
+  if(currentLevel!=='superadmin')return;
+  if(currentUser&&userId===currentUser.id){Swal.fire({icon:'error',title:'ไม่สามารถลบบัญชีตัวเองได้'});return}
+  const result=await Swal.fire({title:'ลบผู้ใช้?',html:`ต้องการลบ <b>${esc(username||'-')}</b> ใช่หรือไม่?<br><span class="text-red-500 text-sm">การลบนี้จะลบ Auth user และ profile</span>`,icon:'warning',showCancelButton:true,confirmButtonColor:'#ef4444',cancelButtonColor:'#9ca3af',confirmButtonText:'<i class="fa-solid fa-trash mr-1"></i> ลบ',cancelButtonText:'ยกเลิก'});
+  if(!result.isConfirmed)return;
+  Swal.fire({title:'กำลังลบผู้ใช้...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+  try{
+    await adminCall('deleteUser',{user_id:userId});
+    Swal.fire({icon:'success',title:'ลบผู้ใช้สำเร็จ',timer:1500,showConfirmButton:false});
+    await loadStaffData();
+  }catch(e){Swal.fire({icon:'error',title:'ลบผู้ใช้ไม่สำเร็จ',text:e.message||'เกิดข้อผิดพลาด'});}
+}
+async function loadStaffData(){if(currentLevel!=='superadmin')return;const{data,error}=await supabaseClient.from('profiles').select('id,display_name,room_or_username,role,created_at').order('created_at',{ascending:false});const tbody=document.getElementById('staffTableBody');tbody.innerHTML='';if(error){tbody.innerHTML=`<tr><td colspan="5" class="p-8 text-center text-red-500">โหลดข้อมูลไม่สำเร็จ: ${esc(error.message)}</td></tr>`;return}if(!data?.length){tbody.innerHTML='<tr><td colspan="5" class="p-8 text-center text-gray-500">ไม่มีข้อมูลผู้ดูแล</td></tr>';return}data.forEach(row=>{const isS=row.role==='superadmin',badge=isS?'bg-purple-100 text-purple-700 border-purple-200':'bg-green-100 text-green-700 border-green-200',icon=isS?'fa-crown':'fa-user-check',isMe=currentUser&&row.id===currentUser.id,username=row.room_or_username||'-';const action=isMe?`<span class="text-xs text-gray-400">บัญชีปัจจุบัน</span>`:`<div class="flex justify-center gap-2"><button onclick="openResetPasswordModal('${row.id}','${esc(username)}')" class="px-2.5 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-bold transition-all" title="เปลี่ยนรหัสผ่าน"><i class="fa-solid fa-key"></i></button><button onclick="deleteUserFromWeb('${row.id}','${esc(username)}')" class="px-2.5 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-bold transition-all" title="ลบผู้ใช้"><i class="fa-solid fa-trash"></i></button></div>`;tbody.innerHTML+=`<tr class="hover:bg-blue-50/50 transition-colors"><td class="p-3 sm:p-4 text-center text-gray-500 font-mono text-[10px]">${esc(String(row.id).slice(0,8))}</td><td class="p-3 sm:p-4 font-bold text-gray-800">${esc(row.display_name||'-')}</td><td class="p-3 sm:p-4 text-gray-600 font-mono text-xs">${esc(username)}</td><td class="p-2 sm:p-4 text-center"><span class="inline-flex items-center justify-center gap-1 px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md border whitespace-nowrap ${badge}"><i class="fa-solid ${icon}"></i><span>${esc(row.role)}</span></span></td><td class="p-2 sm:p-4 text-center">${action}</td></tr>`})}
+initAuth();
+</script>
+</body>
+</html>
