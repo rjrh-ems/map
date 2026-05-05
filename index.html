@@ -352,24 +352,38 @@ function openCreateUserModal(){
 function openResetPasswordModal(userId,username){
   if(currentLevel!=='superadmin')return;
   Swal.fire({
-    title:'รีเซ็ตรหัสผ่าน',
-    html:`<div class="text-left"><div class="text-sm text-gray-600 mb-3">ผู้ใช้: <b>${esc(username||'-')}</b></div><input id="resetPasswordInput" type="password" class="swal2-input !w-full !mx-0 !text-sm" autocomplete="new-password" placeholder="รหัสผ่านใหม่ อย่างน้อย 8 ตัวอักษร"></div>`,
-    confirmButtonText:'<i class="fa-solid fa-key mr-1"></i> เปลี่ยนรหัสผ่าน',
-    confirmButtonColor:'#2563eb',
+    title:'รีเซ็ตรหัสผ่าน?',
+    html:`<div class="text-left text-sm leading-relaxed">
+      <div class="mb-2">ต้องการรีเซ็ตรหัสผ่านของผู้ใช้ <b>${esc(username||'-')}</b> หรือไม่?</div>
+      <div class="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3">
+        รหัสผ่านใหม่จะถูกตั้งเป็น<br>
+        <code class="font-bold text-lg text-red-600">Abc@1234</code>
+      </div>
+      <div class="mt-3 text-gray-500 text-xs">
+        หลังจากผู้ใช้เข้าสู่ระบบได้แล้ว แนะนำให้กดปุ่ม “รหัส” เพื่อเปลี่ยนรหัสผ่านของตัวเองทันที
+      </div>
+    </div>`,
+    icon:'warning',
     showCancelButton:true,
+    confirmButtonText:'<i class="fa-solid fa-key mr-1"></i> รีเซ็ตเป็น Abc@1234',
     cancelButtonText:'ยกเลิก',
-    preConfirm:()=>{
-      const password=document.getElementById('resetPasswordInput').value;
-      if(!password||password.length<8){Swal.showValidationMessage('Password ควรมีอย่างน้อย 8 ตัวอักษร');return false}
-      return{password};
-    }
+    confirmButtonColor:'#f59e0b',
+    cancelButtonColor:'#9ca3af'
   }).then(async r=>{
     if(!r.isConfirmed)return;
-    Swal.fire({title:'กำลังเปลี่ยนรหัสผ่าน...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    Swal.fire({title:'กำลังรีเซ็ตรหัสผ่าน...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
     try{
-      await adminCall('resetPassword',{user_id:userId,password:r.value.password});
-      Swal.fire({icon:'success',title:'เปลี่ยนรหัสผ่านสำเร็จ',timer:1500,showConfirmButton:false});
-    }catch(e){Swal.fire({icon:'error',title:'เปลี่ยนรหัสผ่านไม่สำเร็จ',text:e.message||'เกิดข้อผิดพลาด'});}
+      await adminCall('resetPassword',{user_id:userId,password:'Abc@1234'});
+      await writeActivityLog('reset_user_password',userId,{username,default_password:true});
+      Swal.fire({
+        icon:'success',
+        title:'รีเซ็ตรหัสผ่านสำเร็จ',
+        html:`รหัสผ่านใหม่ของ <b>${esc(username||'-')}</b> คือ<br><code class="font-bold text-lg text-red-600">Abc@1234</code>`,
+        confirmButtonColor:'#2563eb'
+      });
+    }catch(e){
+      Swal.fire({icon:'error',title:'รีเซ็ตรหัสผ่านไม่สำเร็จ',text:e.message||'เกิดข้อผิดพลาด'});
+    }
   });
 }
 async function deleteUserFromWeb(userId,username){
