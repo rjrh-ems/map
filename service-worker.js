@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ems-map-pwa-v1';
+const CACHE_NAME = 'map-app-v5';
 const APP_SHELL = [
   './',
   './index.html',
