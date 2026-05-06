@@ -452,42 +452,120 @@ async function openCreateUserModal(){
   }
 
   Swal.fire({
-    title:'เพิ่มผู้ใช้งานใหม่',
-    width:520,
-    html:`<div class="text-left space-y-3">
-      <div>
-        <label class="text-xs font-bold text-gray-600">ชื่อที่แสดง</label>
-        <input id="newDisplayName" class="swal2-input !w-full !mx-0 !text-sm" placeholder="เช่น สมชาย ใจดี">
+    title:'',
+    width:620,
+    background:'#ffffff',
+    customClass:{
+      popup:'rounded-[2rem] shadow-2xl'
+    },
+    html:`
+      <div class="text-left">
+
+        <div class="flex items-center gap-4 mb-6">
+          <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+            <i class="fa-solid fa-user-plus text-white text-2xl"></i>
+          </div>
+
+          <div>
+            <h2 class="text-3xl font-bold text-gray-800">
+              เพิ่มผู้ใช้งานใหม่
+            </h2>
+
+            <p class="text-sm text-gray-400 mt-1">
+              จัดการสิทธิ์การเข้าถึงระบบแผนที่ EMS
+            </p>
+          </div>
+        </div>
+
+        <div class="space-y-5">
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2">
+              ชื่อที่แสดง
+            </label>
+
+            <input id="newDisplayName"
+              class="swal2-input !w-full !mx-0 !h-14 !rounded-2xl !border-gray-200 !bg-gray-50 !px-4"
+              placeholder="เช่น สมชาย ใจดี">
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2">
+              Username
+            </label>
+
+            <input id="newUsername"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+              class="swal2-input !w-full !mx-0 !h-14 !rounded-2xl !border-gray-200 !bg-gray-50 !px-4"
+              placeholder="เช่น somchai01">
+
+            <div class="mt-2 text-xs text-gray-400">
+              Email อัตโนมัติ:
+              <span class="font-semibold">
+                username@${LOGIN_EMAIL_DOMAIN}
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2">
+              Password
+            </label>
+
+            <input id="newPassword"
+              type="password"
+              autocomplete="new-password"
+              class="swal2-input !w-full !mx-0 !h-14 !rounded-2xl !border-gray-200 !bg-gray-50 !px-4"
+              placeholder="อย่างน้อย 8 ตัวอักษร">
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2">
+              Role
+            </label>
+
+            <select id="newRole"
+              class="swal2-input !w-full !mx-0 !h-14 !rounded-2xl !border-gray-200 !bg-gray-50 !px-4">
+              <option value="viewer">viewer</option>
+              <option value="staff">staff</option>
+              <option value="admin">admin</option>
+              <option value="superadmin">superadmin</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 mt-4">
+            <div class="p-4 rounded-2xl bg-slate-50 border">
+              <div class="font-bold text-slate-700">viewer</div>
+              <div class="text-xs text-gray-500 mt-1">ดู public อย่างเดียว</div>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
+              <div class="font-bold text-emerald-700">staff</div>
+              <div class="text-xs text-gray-500 mt-1">เพิ่มหมุดได้</div>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-amber-50 border border-amber-100">
+              <div class="font-bold text-amber-700">admin</div>
+              <div class="text-xs text-gray-500 mt-1">เห็น VIP + แก้หมุดได้</div>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-purple-50 border border-purple-100">
+              <div class="font-bold text-purple-700">superadmin</div>
+              <div class="text-xs text-gray-500 mt-1">จัดการระบบทั้งหมด</div>
+            </div>
+          </div>
+
+        </div>
+
       </div>
-      <div>
-        <label class="text-xs font-bold text-gray-600">Username</label>
-        <input id="newUsername" autocomplete="off" autocapitalize="none" spellcheck="false" class="swal2-input !w-full !mx-0 !text-sm" placeholder="เช่น somchai01">
-        <div class="text-[11px] text-gray-400 mt-1">ระบบจะใช้เป็นอีเมล: username@${LOGIN_EMAIL_DOMAIN}</div>
-      </div>
-      <div>
-        <label class="text-xs font-bold text-gray-600">Password</label>
-        <input id="newPassword" type="password" autocomplete="new-password" class="swal2-input !w-full !mx-0 !text-sm" placeholder="อย่างน้อย 8 ตัวอักษร">
-      </div>
-      <div>
-        <label class="text-xs font-bold text-gray-600">Role</label>
-        <select id="newRole" class="swal2-input !w-full !mx-0 !text-sm">
-          <option value="viewer">viewer</option>
-          <option value="staff">staff</option>
-          <option value="admin">admin</option>
-          <option value="superadmin">superadmin</option>
-        </select>
-      </div>
-      <div class="text-xs text-gray-500 bg-gray-50 p-3 rounded-xl border leading-6">
-        <div><b>viewer</b> = ดูข้อมูล public อย่างเดียว</div>
-        <div><b>staff</b> = เห็น private + เพิ่มหมุดได้</div>
-        <div><b>admin</b> = เห็น VIP + แก้ไขหมุดได้</div>
-        <div><b>superadmin</b> = จัดการระบบทั้งหมด</div>
-      </div>
-    </div>`,
-    confirmButtonText:'<i class="fa-solid fa-user-plus mr-1"></i> เพิ่มผู้ใช้',
+    `,
+    confirmButtonText:'<i class="fa-solid fa-user-plus mr-2"></i>เพิ่มผู้ใช้',
     confirmButtonColor:'#2563eb',
     showCancelButton:true,
     cancelButtonText:'ยกเลิก',
+
     preConfirm:()=>{
       const display_name=document.getElementById('newDisplayName').value.trim();
       const username=document.getElementById('newUsername').value.trim().toLowerCase();
@@ -498,26 +576,27 @@ async function openCreateUserModal(){
         Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบ');
         return false;
       }
-      if(!/^[a-z0-9._-]+$/.test(username)){
-        Swal.showValidationMessage('Username ใช้ได้เฉพาะ a-z, 0-9, จุด, ขีดกลาง, ขีดล่าง');
-        return false;
-      }
+
       if(password.length<8){
         Swal.showValidationMessage('รหัสผ่านต้องอย่างน้อย 8 ตัวอักษร');
         return false;
       }
-      if(!['viewer','staff','admin','superadmin'].includes(role)){
-        Swal.showValidationMessage('Role ไม่ถูกต้อง');
-        return false;
-      }
+
       return {display_name,username,password,role};
     }
+
   }).then(async r=>{
+
     if(!r.isConfirmed)return;
 
-    Swal.fire({title:'กำลังสร้างผู้ใช้...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    Swal.fire({
+      title:'กำลังสร้างผู้ใช้...',
+      allowOutsideClick:false,
+      didOpen:()=>Swal.showLoading()
+    });
 
     try{
+
       await adminCall('createUser',{
         username:r.value.username,
         password:r.value.password,
@@ -525,28 +604,31 @@ async function openCreateUserModal(){
         role:r.value.role
       });
 
-      await writeActivityLog('create_user',r.value.username,{
-        username:r.value.username,
-        role:r.value.role,
-        display_name:r.value.display_name
-      });
-
       Swal.fire({
         icon:'success',
         title:'สร้างผู้ใช้สำเร็จ',
-        html:`<div class="text-left text-sm leading-7">
-          <div><b>Username:</b> ${esc(r.value.username)}</div>
-          <div><b>Email:</b> ${esc(usernameToEmail(r.value.username))}</div>
-          <div><b>Role:</b> ${esc(r.value.role)}</div>
-        </div>`
+        html:`
+          <div class="text-left text-sm leading-7">
+            <div><b>Email:</b> ${esc(usernameToEmail(r.value.username))}</div>
+            <div><b>Role:</b> ${esc(r.value.role)}</div>
+          </div>
+        `
       });
 
       loadStaffData();
 
     }catch(err){
-      Swal.fire({icon:'error',title:'สร้างผู้ใช้ไม่สำเร็จ',text:err.message||'Unknown error'});
+
+      Swal.fire({
+        icon:'error',
+        title:'สร้างผู้ใช้ไม่สำเร็จ',
+        text:err.message||'Unknown error'
+      });
+
     }
+
   });
+
 }
 function openResetPasswordModal(userId,username){
   if(currentLevel!=='superadmin')return;
@@ -597,7 +679,80 @@ async function deleteUserFromWeb(userId,username){
     await loadStaffData();
   }catch(e){Swal.fire({icon:'error',title:'ลบผู้ใช้ไม่สำเร็จ',text:e.message||'เกิดข้อผิดพลาด'});}
 }
-async function loadStaffData(){if(currentLevel!=='superadmin')return;const{data,error}=await supabaseClient.from('profiles').select('id,display_name,room_or_username,role,created_at').order('created_at',{ascending:false});const tbody=document.getElementById('staffTableBody');tbody.innerHTML='';if(error){tbody.innerHTML=`<tr><td colspan="5" class="p-8 text-center text-red-500">โหลดข้อมูลไม่สำเร็จ: ${esc(error.message)}</td></tr>`;return}if(!data?.length){tbody.innerHTML='<tr><td colspan="5" class="p-8 text-center text-gray-500">ไม่มีข้อมูลผู้ดูแล</td></tr>';return}data.forEach(row=>{const isS=row.role==='superadmin',badge=isS?'bg-purple-100 text-purple-700 border-purple-200':'bg-green-100 text-green-700 border-green-200',icon=isS?'fa-crown':'fa-user-check',isMe=currentUser&&row.id===currentUser.id,username=row.room_or_username||'-';const action=isMe?`<span class="text-xs text-gray-400">บัญชีปัจจุบัน</span>`:`<div class="flex justify-center gap-2"><button onclick="openResetPasswordModal('${row.id}','${esc(username)}')" class="px-2.5 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-bold transition-all" title="เปลี่ยนรหัสผ่าน"><i class="fa-solid fa-key"></i></button><button onclick="deleteUserFromWeb('${row.id}','${esc(username)}')" class="px-2.5 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-bold transition-all" title="ลบผู้ใช้"><i class="fa-solid fa-trash"></i></button></div>`;tbody.innerHTML+=`<tr class="hover:bg-blue-50/50 transition-colors"><td class="p-3 sm:p-4 text-center text-gray-500 font-mono text-[10px]">${esc(String(row.id).slice(0,8))}</td><td class="p-3 sm:p-4 font-bold text-gray-800">${esc(row.display_name||'-')}</td><td class="p-3 sm:p-4 text-gray-600 font-mono text-xs">${esc(username)}</td><td class="p-2 sm:p-4 text-center"><span class="inline-flex items-center justify-center gap-1 px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md border whitespace-nowrap ${badge}"><i class="fa-solid ${icon}"></i><span>${esc(row.role)}</span></span></td><td class="p-2 sm:p-4 text-center">${action}</td></tr>`})}
+
+async function editUserRole(userId,currentRole,currentName){
+
+  if(currentLevel!=='superadmin'){
+    Swal.fire('ไม่มีสิทธิ์','เฉพาะ Super Admin','error');
+    return;
+  }
+
+  const result = await Swal.fire({
+    title:'แก้ไข Role',
+    html:`
+      <div class="text-left">
+        <div class="mb-3 text-sm text-gray-500">
+          ผู้ใช้งาน:
+          <span class="font-bold text-gray-800">${esc(currentName||'-')}</span>
+        </div>
+
+        <select id="editRoleSelect"
+          class="swal2-input !w-full !mx-0 !rounded-2xl">
+
+          <option value="viewer" ${currentRole==='viewer'?'selected':''}>viewer</option>
+          <option value="staff" ${currentRole==='staff'?'selected':''}>staff</option>
+          <option value="admin" ${currentRole==='admin'?'selected':''}>admin</option>
+          <option value="superadmin" ${currentRole==='superadmin'?'selected':''}>superadmin</option>
+
+        </select>
+      </div>
+    `,
+    confirmButtonText:'บันทึก',
+    confirmButtonColor:'#2563eb',
+    showCancelButton:true,
+    cancelButtonText:'ยกเลิก',
+    preConfirm:()=>{
+      return document.getElementById('editRoleSelect').value;
+    }
+  });
+
+  if(!result.isConfirmed)return;
+
+  try{
+
+    Swal.fire({
+      title:'กำลังอัปเดต...',
+      allowOutsideClick:false,
+      didOpen:()=>Swal.showLoading()
+    });
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role: result.value })
+      .eq('id', userId);
+
+    if(error) throw error;
+
+    Swal.fire({
+      icon:'success',
+      title:'อัปเดต Role สำเร็จ'
+    });
+
+    loadStaffData();
+
+  }catch(err){
+
+    Swal.fire({
+      icon:'error',
+      title:'อัปเดตไม่สำเร็จ',
+      text: err.message || 'Unknown error'
+    });
+
+  }
+
+}
+
+async function loadStaffData(){if(currentLevel!=='superadmin')return;const{data,error}=await supabaseClient.from('profiles').select('id,display_name,room_or_username,role,created_at').order('created_at',{ascending:false});const tbody=document.getElementById('staffTableBody');tbody.innerHTML='';if(error){tbody.innerHTML=`<tr><td colspan="5" class="p-8 text-center text-red-500">โหลดข้อมูลไม่สำเร็จ: ${esc(error.message)}</td></tr>`;return}if(!data?.length){tbody.innerHTML='<tr><td colspan="5" class="p-8 text-center text-gray-500">ไม่มีข้อมูลผู้ดูแล</td></tr>';return}data.forEach(row=>{const isS=row.role==='superadmin',badge=isS?'bg-purple-100 text-purple-700 border-purple-200':'bg-green-100 text-green-700 border-green-200',icon=isS?'fa-crown':'fa-user-check',isMe=currentUser&&row.id===currentUser.id,username=row.room_or_username||'-';const action=isMe?`<span class="text-xs text-gray-400">บัญชีปัจจุบัน</span>`:`<div class="flex justify-center gap-2"><button onclick="openResetPasswordModal('${row.id}','${esc(username)}')" class="px-2.5 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-bold transition-all" title="เปลี่ยนรหัสผ่าน"><i class="fa-solid fa-key"></i></button><button onclick="editUserRole(\'${esc(r.id)}\',\'${esc(r.role||\'viewer\')}\',\'${esc(r.display_name||r.username||\'\')}\')" class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 hover:bg-amber-200 transition"><i class="fa-solid fa-user-gear"></i></button><button onclick="deleteUserFromWeb('${row.id}','${esc(username)}')" class="px-2.5 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-bold transition-all" title="ลบผู้ใช้"><i class="fa-solid fa-trash"></i></button></div>`;tbody.innerHTML+=`<tr class="hover:bg-blue-50/50 transition-colors"><td class="p-3 sm:p-4 text-center text-gray-500 font-mono text-[10px]">${esc(String(row.id).slice(0,8))}</td><td class="p-3 sm:p-4 font-bold text-gray-800">${esc(row.display_name||'-')}</td><td class="p-3 sm:p-4 text-gray-600 font-mono text-xs">${esc(username)}</td><td class="p-2 sm:p-4 text-center"><span class="inline-flex items-center justify-center gap-1 px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md border whitespace-nowrap ${badge}"><i class="fa-solid ${icon}"></i><span>${esc(row.role)}</span></span></td><td class="p-2 sm:p-4 text-center">${action}</td></tr>`})}
 
 function showIosInstallHint(){
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
