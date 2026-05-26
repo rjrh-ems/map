@@ -146,7 +146,7 @@
           <i class="fa-solid fa-magnifying-glass text-gray-400 ml-2"></i>
           <input type="text" id="mapSearchInput" placeholder="ค้นหาสถานที่..." class="w-full outline-none text-sm bg-transparent py-1.5" oninput="searchMapLocations()">
           <select id="mapCategoryFilter" onchange="searchMapLocations();showMapMarkers(getVisibleMapData())" class="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 outline-none">
-            </select>
+          </select>
           <button onclick="clearMapSearch()" class="text-gray-400 hover:text-red-500 px-2 transition-colors" title="ล้างการค้นหา"><i class="fa-solid fa-xmark"></i></button>
         </div>
       </div>
@@ -366,7 +366,29 @@ function updateAuthUI(){
 
 async function showLogin(){
   Swal.fire({title:'เข้าสู่ระบบผู้ดูแล',html:`<input type="text" id="loginUser" autocomplete="off" autocapitalize="none" spellcheck="false" class="swal2-input !w-[80%] !text-sm" placeholder="Username"><input type="password" id="loginPass" autocomplete="new-password" class="swal2-input !w-[80%] !text-sm" placeholder="Password">`,confirmButtonText:'<i class="fa-solid fa-right-to-bracket mr-2"></i>เข้าสู่ระบบ',confirmButtonColor:'#2563eb',showCancelButton:true,cancelButtonText:'<i class="fa-solid fa-xmark mr-2"></i>ยกเลิก',preConfirm:()=>{const user=document.getElementById('loginUser').value.trim(),pass=document.getElementById('loginPass').value;if(!user||!pass){Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบถ้วน');return false}return{user,pass}}}).then(async r=>{if(!r.isConfirmed)return;Swal.fire({title:'กำลังตรวจสอบ...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});const loginEmail=usernameToEmail(r.value.user);console.log('LOGIN EMAIL =',loginEmail);const{data,error}=await supabaseClient.auth.signInWithPassword({email:loginEmail,password:r.value.pass});if(error){console.error('LOGIN ERROR =',error);Swal.fire({icon:'error',title:'เข้าสู่ระบบล้มเหลว',html:`<div class="text-left text-sm leading-relaxed"><div><b>Email ที่ส่ง:</b> ${esc(loginEmail)}</div><div><b>Supabase error:</b> ${esc(error.message||'Unknown error')}</div><div class="mt-2 text-gray-500">ถ้าเป็น Invalid login credentials ให้เช็ค password / email ใน Authentication → Users อีกครั้ง</div></div>`});return}currentUser=data.user;await loadProfile();if(!currentProfile){await supabaseClient.auth.signOut();currentUser=null;currentLevel=null;Swal.fire({icon:'error',title:'ไม่พบ Profile',text:'บัญชีนี้ยังไม่ได้กำหนด role ในตาราง profiles'});updateCategoryDropdowns();updateAuthUI();return}updateCategoryDropdowns();updateAuthUI();await loadMapData();Swal.fire({icon:'success',title:'สำเร็จ',text:`ยินดีต้วนรับคุณ ${currentProfile.display_name||currentProfile.room_or_username}`,timer:1500,showConfirmButton:false})})}
-async function logout(){document.body.classList.remove('mobile-can-add');const dock=document.getElementById('mobileQuickDock');if(dock)dock.classList.remove('mobile-dock-active');await supabaseClient.auth.signOut();currentUser=null;currentProfile=null;currentLevel=null;updateCategoryDropdowns();switchView('map');updateAuthUI();await loadMapData();Swal.fire({icon:'info',title:'ออกจากระบบแล้ว',timer:1000,showConfirmButton:false})}
+
+async function logout(){
+  document.body.classList.remove('mobile-can-add');
+  const dock=document.getElementById('mobileQuickDock');
+  if(dock)dock.classList.remove('mobile-dock-active');
+  
+  await supabaseClient.auth.signOut();
+  
+  // Clear Memory State immediately on Logout
+  currentUser=null;
+  currentProfile=null;
+  currentLevel=null;
+  window.mapData=[]; 
+  markersLayer.clearLayers(); 
+  clearMapSearch(); 
+  
+  updateCategoryDropdowns();
+  switchView('map');
+  updateAuthUI();
+  await loadMapData(); // Reload map data with empty auth context (only hospitals will be loaded)
+  
+  Swal.fire({icon:'info',title:'ออกจากระบบแล้ว',timer:1000,showConfirmButton:false});
+}
 
 function openChangeMyPassword(){
   if(!currentUser){showLogin();return;}
@@ -406,7 +428,7 @@ async function loadMapData(){
   if(error){console.error(error);Swal.fire({icon:'error',title:'โหลดข้อมูลไม่สำเร็จ',text:error.message});return}
   
   let rawData = data || [];
-  // Security Data Gate: If viewer role, only process hospital category
+  // Security Data Gate: If viewer role OR Not logged in, only process hospital category
   if(currentLevel === 'viewer' || !currentUser){
     rawData = rawData.filter(i => normalizeCategory(i.category) === 'hospital');
   }
@@ -444,7 +466,7 @@ function searchMapLocations(){
   const input=document.getElementById('mapSearchInput'),box=document.getElementById('mapSearchResults'),cat=document.getElementById('mapCategoryFilter')?.value||'';
   const kw=input.value.trim().toLowerCase();
   
-  // Dynamic constraint based on role
+  // Dynamic constraint based on role (or not logged in)
   const isViewer = (currentLevel === 'viewer' || !currentUser);
   const base=(window.mapData||[]).filter(r=>{
     const categoryMatch = !cat || r[9]===cat;
@@ -567,7 +589,7 @@ function openMobileMode(){
   document.getElementById('mobileMode').classList.remove('hidden');
   getMobileLocation();
 }
-function closeMobileMode(){document.getElementById('mobileMode').classList.add('hidden')}
+closeMobileMode = () => document.getElementById('mobileMode').classList.add('hidden');
 function getMobileLocation(){
   if(!navigator.geolocation){document.getElementById('m_location').innerText='เบราว์เซอร์ไม่รองรับ GPS';return}
   document.getElementById('m_location').innerText='กำลังค้นหาตำแหน่ง...';
